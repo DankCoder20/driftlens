@@ -609,7 +609,18 @@ func (s *Server) Scan(ctx context.Context) error {
 		n.Drift = append(n.Drift, drift.Compare(desired, actual, m, fail)...)
 	}
 	n.Summary = analytics.Summarize(n.Resources, n.Drift)
-	n.Changes = history.Changes(old.Drift, n.Drift, old.Resources, n.Resources)
+	// Failed or incomplete list scopes cannot prove that resources were added or removed.
+	comparable := func(rs []inventory.Resource) []inventory.Resource {
+		out := []inventory.Resource{}
+		for _, r := range rs {
+			cluster, ok := n.Clusters[r.ClusterID]
+			if ok && cluster.Failures["discovery"] == "" && cluster.Failures[r.Group+"/"+r.Kind] == "" {
+				out = append(out, r)
+			}
+		}
+		return out
+	}
+	n.Changes = history.Changes(old.Drift, n.Drift, comparable(old.Resources), comparable(n.Resources))
 	if len(n.Errors) > 0 {
 		n.Status = "partial"
 	}

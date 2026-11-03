@@ -2,6 +2,7 @@ name: Verify DriftLens
 on:
   push:
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -31,6 +32,19 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci && npm test && npm run build && npm audit --omit=dev
         working-directory: frontend
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 scripts/init-env.py
+          docker compose --env-file .env -f deployments/docker-compose.yml up --build -d --wait
+          curl --fail http://127.0.0.1:8080/api/health
+          curl --fail http://127.0.0.1:8080/ > /dev/null
+      - if: failure()
+        run: docker compose --env-file .env -f deployments/docker-compose.yml logs --tail 80
+      - if: always()
+        run: docker compose --env-file .env -f deployments/docker-compose.yml down
   kind-integration:
     runs-on: ubuntu-latest
     steps:

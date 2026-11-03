@@ -124,6 +124,7 @@ func Render(ctx context.Context, root string, m inventory.Mapping) ([]inventory.
 		seen[r.ID] = true
 		r.RepositoryID = m.RepositoryID
 		r.Release = m.Release
+		r.Health = "Not observed"
 	}
 	return out, nil
 }

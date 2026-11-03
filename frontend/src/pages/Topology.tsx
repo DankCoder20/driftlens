@@ -161,7 +161,7 @@ export function Topology({
       ) : (
         <div className="topology-canvas">
           <ReactFlow
-            key={`${id}-${ns}`}
+            key={`${id}-${ns}-${source}`}
             nodes={graph.nodes}
             edges={graph.edges}
             fitView
@@ -185,9 +185,9 @@ export function Topology({
       </p>
       {selected && (
         <Detail
-          resource={selected}
+          resource={source === "actual" ? selected : undefined}
           drift={drift.find(
-            (d) => d.actual?.id === selected.id && d.clusterId === id,
+            (d) => (d.actual?.id || d.desired?.id) === selected.id && d.clusterId === id,
           )}
           onClose={() => setSelected(undefined)}
         />

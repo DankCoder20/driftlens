@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+func TestMalformedDefaultFieldDoesNotPanic(t *testing.T) {
+	if Default("/spec/replicas", map[string]any{"invalid": true}) {
+		t.Fatal("an invalid structure must remain visible as drift")
+	}
+}
+
 func TestGeneratedMetadataAndPointer(t *testing.T) {
 	o := inventory.Object{"kind": "Deployment", "metadata": map[string]any{"uid": "private", "labels": map[string]any{"team": "platform"}, "annotations": map[string]any{"a.b/c": "x", "keep": "yes"}}, "status": map[string]any{"readyReplicas": 1}}
 	m := Normalize(o, []string{"/metadata/annotations/a.b~1c"})

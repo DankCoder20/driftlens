@@ -95,31 +95,31 @@ function timestamp(s?: string) {
     : "No scans yet";
 }
 function trendRows(history: History[]) {
-  return [...history]
-    .reverse()
-    .map((h) => ({
-      time: new Date(h.createdAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      drift:
-        (h.summary.classifications.MODIFIED || 0) +
-        (h.summary.classifications.MISSING || 0) +
-        (h.summary.classifications.EXTRA || 0),
-      resources: h.summary.total,
-      unhealthy: h.summary.unhealthy,
-      ready: h.summary.readyReplicas,
-      desired: h.summary.desiredReplicas,
-      pending: h.summary.health.Pending || 0,
-      failed: h.summary.health.Failed || 0,
-    }));
+  return [...history].reverse().map((h) => ({
+    time: new Date(h.createdAt).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    drift:
+      (h.summary.classifications.MODIFIED || 0) +
+      (h.summary.classifications.MISSING || 0) +
+      (h.summary.classifications.EXTRA || 0),
+    resources: h.summary.total,
+    unhealthy: h.summary.unhealthy,
+    ready: h.summary.readyReplicas,
+    desired: h.summary.desiredReplicas,
+    pending: h.summary.health.Pending || 0,
+    failed: h.summary.health.Failed || 0,
+  }));
 }
 export default function App() {
   const readPage = () => {
     try {
       const name = decodeURIComponent(location.hash.slice(1));
-      return pages.some(p => p.name === name) ? name : "Overview";
-    } catch { return "Overview"; }
+      return pages.some((p) => p.name === name) ? name : "Overview";
+    } catch {
+      return "Overview";
+    }
   };
   const [page, setPage] = useState(readPage);
   useEffect(() => {
