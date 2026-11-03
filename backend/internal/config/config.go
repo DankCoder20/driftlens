@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Addr, DataDir, RepositoryRoot, CredentialRoot, Token, FrontendDir string
 	AllowExec                                                         bool
+	ExecAuthCommands                                                  string
 }
 
 func env(k, d string) string {
@@ -20,6 +21,7 @@ func env(k, d string) string {
 }
 func Load() (Config, error) {
 	c := Config{Addr: env("DRIFTLENS_ADDR", "127.0.0.1:8080"), DataDir: env("DRIFTLENS_DATA_DIR", ".data"), RepositoryRoot: env("DRIFTLENS_REPOSITORY_ROOT", "../demo"), CredentialRoot: env("DRIFTLENS_CREDENTIAL_ROOT", "../credentials"), Token: os.Getenv("DRIFTLENS_API_TOKEN"), FrontendDir: env("DRIFTLENS_FRONTEND_DIR", "../frontend/dist"), AllowExec: os.Getenv("DRIFTLENS_ALLOW_EXEC_AUTH") == "true"}
+	c.ExecAuthCommands = os.Getenv("DRIFTLENS_EXEC_AUTH_COMMANDS")
 	if c.Token == "" && !strings.HasPrefix(c.Addr, "127.0.0.1:") && !strings.HasPrefix(c.Addr, "localhost:") {
 		return c, fmt.Errorf("DRIFTLENS_API_TOKEN is required when listening beyond loopback")
 	}

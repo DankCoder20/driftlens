@@ -2,7 +2,7 @@
 
 ## Isolation for this installation
 
-Development and verification use this repository's bundled sample infrastructure only. The local application's cluster list is empty. The only live Kubernetes tests run in a disposable `driftlens-demo` Kind cluster created on a GitHub-hosted Actions runner. The demo's kubectl and Helm mutations explicitly select its dedicated kubeconfig/context; they do not use a workstation's default Kubernetes context. No company cluster, company kubeconfig, or existing company infrastructure is part of the test setup. Future hosting and connections require a separately selected, user-owned environment.
+Automated development tests use this repository's bundled sample infrastructure only. Live integration tests run in a disposable `driftlens-demo` Kind cluster created on a GitHub-hosted Actions runner. The demo's kubectl and Helm mutations explicitly select its dedicated kubeconfig/context; they do not use a workstation's default Kubernetes context. Company infrastructure is never part of the automated test setup. Operator-requested application connections are separate, read-only, and retained only in local runtime configuration; they are not committed or used by CI.
 
 ## Application boundary
 
@@ -10,7 +10,7 @@ DriftLens is a single-operator, self-hosted MVP. Use a private workstation, VPN 
 
 Kubernetes access consists of discovery, version and list requests. The API exposes no apply/patch/delete operation. Supply a read-only identity; the application cannot downgrade privileges embedded in an administrator’s kubeconfig. The included demo deliberately uses a separate read-only service account. Secret access uses `PartialObjectMetadataList`; defensive sanitization also removes any payload and non-ownership Secret annotations before persistence.
 
-Kubeconfigs are referenced under an operator-configured directory. They never appear in API responses, snapshots or logs. Credential file references must remain under that root. Exec authentication is disabled by default because kubeconfig exec plugins run a local command. Enable `DRIFTLENS_ALLOW_EXEC_AUTH=true` only for operator-provisioned, trusted plugins. There is no browser kubeconfig-upload endpoint.
+Kubeconfigs are referenced under an operator-configured directory. They never appear in API responses, snapshots or logs. Credential file references must remain under that root. Exec authentication is disabled by default because kubeconfig exec plugins run a local command. Prefer `DRIFTLENS_EXEC_AUTH_COMMANDS` with a comma-separated list of exact trusted commands (for example `gke-gcloud-auth-plugin.exe` on Windows). A different executable path is not approved merely because its basename matches. `DRIFTLENS_ALLOW_EXEC_AUTH=true` remains available for operator-provisioned configurations that intentionally allow all exec commands. There is no browser kubeconfig-upload endpoint.
 
 Local repository and values paths are resolved, including symlinks, before checking containment. Chart and manifest symlinks are rejected. Remote repositories accept HTTPS or SSH URLs without embedded passwords/tokens. Git uses noninteractive, restricted-protocol commands; local repository scripts, submodule updates and Helm post-renderers are not executed. Operators remain responsible for the trusted server Git configuration and credential helpers.
 

@@ -50,8 +50,8 @@ func New(c config.Config, cluster inventory.Cluster) (*Client, error) {
 		raw.CurrentContext = cluster.Context
 	}
 	for _, a := range raw.AuthInfos {
-		if a.Exec != nil && !c.AllowExec {
-			return nil, fmt.Errorf("exec credential plugins are disabled; use a read-only token/certificate kubeconfig or explicitly enable trusted exec auth")
+		if a.Exec != nil && !execAllowed(c, a.Exec.Command) {
+			return nil, fmt.Errorf("exec credential plugin is not approved; configure DRIFTLENS_EXEC_AUTH_COMMANDS with the exact trusted plugin command on the server")
 		}
 		if a.AuthProvider != nil {
 			return nil, fmt.Errorf("legacy auth providers are not supported")
@@ -78,6 +78,17 @@ func New(c config.Config, cluster inventory.Cluster) (*Client, error) {
 		return nil, fmt.Errorf("invalid kubeconfig context or credentials")
 	}
 	return FromConfig(cfg)
+}
+func execAllowed(c config.Config, command string) bool {
+	if c.AllowExec {
+		return true
+	}
+	for _, allowed := range strings.Split(c.ExecAuthCommands, ",") {
+		if allowed = strings.TrimSpace(allowed); allowed != "" && command == allowed {
+			return true
+		}
+	}
+	return false
 }
 func FromConfig(cfg *rest.Config) (*Client, error) {
 	cfg = rest.CopyConfig(cfg)

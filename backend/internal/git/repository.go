@@ -57,7 +57,9 @@ func run(ctx context.Context, dir string, args ...string) (string, error) {
 	args = append([]string{"-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never"}, args...)
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ALLOW_PROTOCOL=https:ssh", "GIT_CONFIG_NOSYSTEM=1")
+	// Keep operator-installed credential helpers (including Windows GCM) available.
+	// Command-line restrictions still disable repository hooks and unsafe transports.
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=never", "GIT_ALLOW_PROTOCOL=https:ssh")
 	b, e := cmd.Output()
 	if e != nil {
 		return "", fmt.Errorf("git operation failed (check URL, branch, network and server-side credentials)")
