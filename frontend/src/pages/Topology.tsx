@@ -20,7 +20,7 @@ export function Topology({
   drift: Drift[];
 }) {
   const [cluster, setCluster] = useState("");
-  const [ns, setNs] = useState("");
+  const [ns, setNs] = useState("__mapped__");
   const [source, setSource] = useState("actual");
   const [selected, setSelected] = useState<Resource>();
   const id = cluster || clusters[0]?.id;
@@ -37,6 +37,12 @@ export function Topology({
     ...new Set(data?.nodes.map((n) => n.namespace).filter(Boolean)),
   ].sort();
   const graph = useMemo(() => {
+    const mappedNamespaces = new Set(
+      drift
+        .filter((d) => d.clusterId === id)
+        .map((d) => d.namespace)
+        .filter(Boolean),
+    );
     const ranks: Record<string, number> = {
       Namespace: 0,
       Ingress: 1,
@@ -54,6 +60,10 @@ export function Topology({
     const filtered = (data?.nodes || []).filter(
       (r) =>
         (!ns ||
+          (ns === "__mapped__" &&
+            (!mappedNamespaces.size ||
+              mappedNamespaces.has(r.namespace) ||
+              (r.kind === "Namespace" && mappedNamespaces.has(r.name)))) ||
           r.namespace === ns ||
           (r.kind === "Namespace" && r.name === ns)) &&
         !["Event", "Endpoints", "EndpointSlice"].includes(r.kind),
@@ -126,7 +136,7 @@ export function Topology({
           value={id}
           onChange={(e) => {
             setCluster(e.target.value);
-            setNs("");
+            setNs("__mapped__");
           }}
         >
           {clusters.map((c) => (
@@ -140,6 +150,7 @@ export function Topology({
           value={ns}
           onChange={(e) => setNs(e.target.value)}
         >
+          <option value="__mapped__">Mapped environments</option>
           <option value="">All namespaces</option>
           {namespaces.map((n) => (
             <option key={n}>{n}</option>
@@ -187,7 +198,9 @@ export function Topology({
         <Detail
           resource={source === "actual" ? selected : undefined}
           drift={drift.find(
-            (d) => (d.actual?.id || d.desired?.id) === selected.id && d.clusterId === id,
+            (d) =>
+              (d.actual?.id || d.desired?.id) === selected.id &&
+              d.clusterId === id,
           )}
           onClose={() => setSelected(undefined)}
         />

@@ -98,7 +98,11 @@ func (s *Server) Handler() http.Handler {
 		s.mu.RLock()
 		running := s.running
 		s.mu.RUnlock()
-		write(w, 200, map[string]any{"snapshot": s.current(), "scanning": running})
+		snapshot := s.current()
+		if r.URL.Query().Get("compact") == "true" {
+			snapshot.Resources = []inventory.Resource{}
+		}
+		write(w, 200, map[string]any{"snapshot": snapshot, "scanning": running})
 	})
 	for _, kind := range []string{"repositories", "clusters", "mappings"} {
 		m.HandleFunc("GET /api/"+kind, func(w http.ResponseWriter, r *http.Request) {

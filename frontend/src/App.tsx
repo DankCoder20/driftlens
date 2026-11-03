@@ -1,3 +1,6 @@
+import { InventoryTable } from "./components/InventoryTable";
+import { Overview, DriftPage } from "./pages/DriftWorkspace";
+import { reviewGroup } from "./features/driftPresentation";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -140,7 +143,8 @@ export default function App() {
   }
   const state = useQuery({
     queryKey: ["state"],
-    queryFn: () => api<{ snapshot: Snapshot; scanning: boolean }>("/state"),
+    queryFn: () =>
+      api<{ snapshot: Snapshot; scanning: boolean }>("/state?compact=true"),
     refetchInterval: 5000,
   });
   const repos = useQuery({
@@ -206,9 +210,13 @@ export default function App() {
               <p.icon size={17} />
               {p.name}
               {p.name === "Drift Analysis" &&
-                !!s?.summary.classifications.MODIFIED && (
+                !!s?.drift.filter((d) => reviewGroup(d) === "declared")
+                  .length && (
                   <span className="nav-count">
-                    {s.summary.classifications.MODIFIED}
+                    {
+                      s.drift.filter((d) => reviewGroup(d) === "declared")
+                        .length
+                    }
                   </span>
                 )}
             </button>
@@ -419,310 +427,6 @@ export default function App() {
     </div>
   );
 }
-function Overview({
-  snapshot: s,
-  repos,
-  clusters,
-  history,
-  onConnect,
-  onDrift,
-  onSelect,
-}: {
-  snapshot: Snapshot;
-  repos: Repository[];
-  clusters: Cluster[];
-  history: History[];
-  onConnect: () => void;
-  onDrift: () => void;
-  onSelect: (d: Drift) => void;
-}) {
-  const counts = s.summary.classifications;
-  const drift =
-    (counts.MODIFIED || 0) + (counts.MISSING || 0) + (counts.EXTRA || 0);
-  const metrics = [
-    {
-      label: "Observed resources",
-      value: s.summary.total,
-      icon: Box,
-      sub: `${clusters.length} connected clusters`,
-      color: "blue",
-    },
-    {
-      label: "In sync",
-      value: counts.IN_SYNC || 0,
-      icon: CheckCheck,
-      sub: "Matched desired configuration",
-      color: "green",
-    },
-    {
-      label: "Configuration drift",
-      value: drift,
-      icon: GitCompareArrows,
-      sub: `${counts.MISSING || 0} missing · ${counts.EXTRA || 0} extra`,
-      color: "amber",
-    },
-    {
-      label: "Unhealthy workloads",
-      value: s.summary.unhealthy,
-      icon: Activity,
-      sub: "From Kubernetes status",
-      color: "rose",
-    },
-  ];
-  return (
-    <>
-      <div className="metric-grid">
-        {metrics.map((m) => (
-          <div className={`metric ${m.color}`} key={m.label}>
-            <div>
-              <span>{m.label}</span>
-              <m.icon size={18} />
-            </div>
-            <strong>{m.value.toLocaleString()}</strong>
-            <small>
-              <i />
-              {m.sub}
-            </small>
-          </div>
-        ))}
-      </div>
-      {!repos.length && !clusters.length ? (
-        <div className="onboarding">
-          <div>
-            <span className="eyebrow">YOUR INFRASTRUCTURE STARTS HERE</span>
-            <h2>
-              Bring desired and actual
-              <br />
-              into the same picture.
-            </h2>
-            <p>
-              Connect a Git repository and a Kubernetes cluster.
-              <br />
-              DriftLens will show you exactly where they diverge.
-            </p>
-            <button className="primary" onClick={onConnect}>
-              Connect your first source <ArrowRight size={16} />
-            </button>
-          </div>
-          <div className="onboarding-graph">
-            <div>
-              <GitBranch />
-              Git repository<small>Desired state</small>
-            </div>
-            <span>→</span>
-            <div className="lens">
-              <Layers3 />
-              DriftLens<small>Compare & understand</small>
-            </div>
-            <span>←</span>
-            <div>
-              <Server />
-              Kubernetes<small>Actual state</small>
-            </div>
-          </div>
-        </div>
-      ) : !s.id ? (
-        <Empty title="Ready for your first snapshot">
-          Configure an environment mapping, then run a scan to collect your
-          infrastructure.
-        </Empty>
-      ) : null}
-      <div className="charts-grid">
-        <Panel
-          title="Drift over time"
-          caption="Configuration differences across collected snapshots"
-          action={
-            <span className="subtle-tag">{history.length} snapshots</span>
-          }
-        >
-          <Trend
-            rows={trendRows(history)}
-            series={[
-              { key: "drift", name: "Drifted resources", color: "#f3be6e" },
-            ]}
-          />
-        </Panel>
-        <Panel
-          title="Resource composition"
-          caption="Observed Kubernetes objects by kind"
-        >
-          <Distribution data={s.summary.kinds} donut />
-        </Panel>
-      </div>
-      <div className="status-strip">
-        <div>
-          <GitBranch size={17} />
-          <strong>{repos.length}</strong>
-          <span>repositories</span>
-        </div>
-        <div>
-          <Server size={17} />
-          <strong>{clusters.length}</strong>
-          <span>clusters</span>
-        </div>
-        <div>
-          <Layers3 size={17} />
-          <strong>{Object.keys(s.summary.namespaces).length}</strong>
-          <span>namespace groups</span>
-        </div>
-        <div>
-          <Activity size={17} />
-          <strong>
-            {s.summary.readyReplicas} / {s.summary.desiredReplicas}
-          </strong>
-          <span>ready replicas</span>
-        </div>
-      </div>
-      <Panel
-        title="Needs your attention"
-        caption="Configuration differences and incomplete comparisons"
-        action={
-          <button className="text-button" onClick={onDrift}>
-            View all drift <ArrowUpRight size={14} />
-          </button>
-        }
-      >
-        <ResourceTable
-          rows={s.drift
-            .filter((d) => d.classification !== "IN_SYNC")
-            .slice(0, 6)}
-          onSelect={onSelect}
-        />
-      </Panel>
-      <div className="charts-grid three">
-        <Panel title="Namespace distribution">
-          <Distribution data={s.summary.namespaces} />
-        </Panel>
-        <Panel title="Cluster comparison">
-          <Distribution
-            data={Object.fromEntries(
-              clusters.map((c) => [c.name, s.summary.clusters[c.id] || 0]),
-            )}
-          />
-        </Panel>
-        <Panel title="Workload health">
-          <Distribution data={s.summary.health} donut />
-        </Panel>
-      </div>
-      <div className="notice">
-        CPU and memory utilization are not collected in this version. Health and
-        replica counts come directly from Kubernetes status.
-      </div>
-    </>
-  );
-}
-function DriftPage({
-  rows,
-  repos,
-  clusters,
-  onSelect,
-  onConnect,
-  mapped,
-}: {
-  rows: Drift[];
-  repos: Repository[];
-  clusters: Cluster[];
-  onSelect: (d: Drift) => void;
-  onConnect: () => void;
-  mapped: boolean;
-}) {
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const choices: Record<string, { value: string; label: string }[]> = {
-    repositoryId: repos.map((r) => ({ value: r.id, label: r.name })),
-    environment: [...new Set(rows.map((r) => r.environment))].map((v) => ({
-      value: v,
-      label: v,
-    })),
-    clusterId: clusters.map((c) => ({ value: c.id, label: c.name })),
-    namespace: [...new Set(rows.map((r) => r.namespace))].map((v) => ({
-      value: v,
-      label: v || "cluster-scoped",
-    })),
-    kind: [...new Set(rows.map((r) => r.kind))].map((v) => ({
-      value: v,
-      label: v,
-    })),
-    classification: ["IN_SYNC", "MODIFIED", "MISSING", "EXTRA", "UNKNOWN"].map(
-      (v) => ({ value: v, label: v.replaceAll("_", " ") }),
-    ),
-  };
-  const labels: Record<string, string> = {
-    repositoryId: "Repositories",
-    environment: "Environments",
-    clusterId: "Clusters",
-    namespace: "Namespaces",
-    kind: "Kinds",
-    classification: "States",
-  };
-  const filtered = rows.filter(
-    (r) =>
-      `${r.name} ${r.kind} ${r.namespace}`
-        .toLowerCase()
-        .includes(search.toLowerCase()) &&
-      Object.entries(filters).every(
-        ([k, v]) => !v || (r as unknown as Record<string, string>)[k] === v,
-      ),
-  );
-  if (!mapped)
-    return (
-      <Empty title="Give drift a point of comparison" action={onConnect}>
-        Create an environment mapping between a repository, Helm release,
-        cluster and namespace.
-      </Empty>
-    );
-  return (
-    <>
-      <div className="drift-summary">
-        {["IN_SYNC", "MODIFIED", "MISSING", "EXTRA", "UNKNOWN"].map((c) => (
-          <button
-            key={c}
-            className={filters.classification === c ? "selected" : ""}
-            onClick={() =>
-              setFilters({
-                ...filters,
-                classification: filters.classification === c ? "" : c,
-              })
-            }
-          >
-            <Badge value={c} />
-            <strong>{rows.filter((r) => r.classification === c).length}</strong>
-          </button>
-        ))}
-      </div>
-      <Panel
-        title="Resource comparisons"
-        caption="Structural differences with server-generated fields normalized"
-      >
-        <div className="toolbar">
-          <SearchInput value={search} onChange={setSearch} />
-          {Object.entries(choices).map(([key, values]) => (
-            <select
-              key={key}
-              aria-label={labels[key]}
-              value={filters[key] || ""}
-              onChange={(e) =>
-                setFilters({ ...filters, [key]: e.target.value })
-              }
-            >
-              <option value="">All {labels[key].toLowerCase()}</option>
-              {values.map((v) => (
-                <option key={v.value} value={v.value}>
-                  {v.label}
-                </option>
-              ))}
-            </select>
-          ))}
-        </div>
-        <ResourceTable rows={filtered} onSelect={onSelect} />
-        <div className="table-footer">
-          {filtered.length} of {rows.length} resources{" "}
-          <span>Click a resource to inspect YAML and field-level changes</span>
-        </div>
-      </Panel>
-    </>
-  );
-}
 function Repositories({
   repos,
   snapshot: s,
@@ -882,8 +586,13 @@ function Clusters({
   onSelect: (r: Resource) => void;
 }) {
   const [id, setId] = useState("");
-  const [ns, setNs] = useState("");
+  const [ns, setNs] = useState("__mapped__");
   const [search, setSearch] = useState("");
+  const inventory = useQuery({
+    queryKey: ["inventory", s?.id],
+    queryFn: () => api<Resource[]>("/inventory"),
+    enabled: clusters.length > 0,
+  });
   if (!clusters.length)
     return (
       <Empty title="See what is actually running" action={onConnect}>
@@ -892,10 +601,20 @@ function Clusters({
       </Empty>
     );
   const selected = id || clusters[0].id;
-  const resources = s?.resources.filter((r) => r.clusterId === selected) || [];
+  const resources =
+    inventory.data?.filter((r) => r.clusterId === selected) || [];
+  const mappedNamespaces = new Set(
+    s?.drift
+      .filter((d) => d.clusterId === selected)
+      .map((d) => d.namespace)
+      .filter(Boolean),
+  );
   const filtered = resources.filter(
     (r) =>
-      (!ns || r.namespace === ns) &&
+      (!ns ||
+        (ns === "__mapped__"
+          ? !mappedNamespaces.size || mappedNamespaces.has(r.namespace)
+          : r.namespace === ns)) &&
       `${r.name} ${r.kind}`.toLowerCase().includes(search.toLowerCase()),
   );
   return (
@@ -904,7 +623,7 @@ function Clusters({
         {clusters.map((c) => {
           const status = s?.clusters[c.id];
           const pods =
-            s?.resources.filter(
+            inventory.data?.filter(
               (r) => r.clusterId === c.id && r.kind === "Pod",
             ) || [];
           return (
@@ -913,7 +632,7 @@ function Clusters({
               key={c.id}
               onClick={() => {
                 setId(c.id);
-                setNs("");
+                setNs("__mapped__");
               }}
             >
               <div className="card-title">
@@ -944,8 +663,16 @@ function Clusters({
       </div>
       <Panel
         title="Live inventory"
-        caption="Includes runtime resources, events, and Secret metadata"
+        caption="Starts with workloads in mapped environments. Other categories remain available below."
       >
+        {inventory.isLoading && (
+          <div className="small-empty">Loading cluster inventory…</div>
+        )}
+        {inventory.error && (
+          <div role="alert" className="alert">
+            {inventory.error.message}
+          </div>
+        )}
         <div className="toolbar">
           <SearchInput value={search} onChange={setSearch} />
           <select
@@ -953,6 +680,7 @@ function Clusters({
             value={ns}
             onChange={(e) => setNs(e.target.value)}
           >
+            <option value="__mapped__">Mapped environments</option>
             <option value="">All namespaces</option>
             {s?.clusters[selected]?.namespaces.map((n) => (
               <option key={n}>{n}</option>
@@ -960,53 +688,7 @@ function Clusters({
           </select>
           <span className="muted">{filtered.length} objects</span>
         </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Resource</th>
-                <th>Kind</th>
-                <th>Namespace</th>
-                <th>Health</th>
-                <th>Replicas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr
-                  key={r.id}
-                  tabIndex={0}
-                  onClick={() => onSelect(r)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") onSelect(r);
-                  }}
-                >
-                  <td className="resource-name">
-                    <Box size={14} />
-                    {r.name}
-                  </td>
-                  <td>{r.kind}</td>
-                  <td className="mono muted">
-                    {r.namespace || "cluster-scoped"}
-                  </td>
-                  <td>
-                    <Badge value={r.health} />
-                  </td>
-                  <td>
-                    {["Deployment", "StatefulSet", "DaemonSet"].includes(r.kind)
-                      ? `${r.readyReplicas} / ${r.desiredReplicas}`
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!filtered.length && (
-            <div className="small-empty">
-              No observed resources. Run a scan or adjust your filters.
-            </div>
-          )}
-        </div>
+        <InventoryTable resources={filtered} onSelect={onSelect} />
       </Panel>
     </>
   );

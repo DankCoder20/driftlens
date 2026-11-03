@@ -53,8 +53,15 @@ describe("resource experience", () => {
     expect(screen.getByText("/spec/replicas")).toBeInTheDocument();
     expect(screen.getByText("− 3")).toBeInTheDocument();
     expect(screen.getByText("+ 1")).toBeInTheDocument();
-    expect(screen.getByText("Desired · Git")).toBeInTheDocument();
-    expect(screen.getByText("Actual · Cluster")).toBeInTheDocument();
+    expect(screen.getAllByText("Desired · Git").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Actual · Cluster").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("tab", { name: "Full YAML" }));
+    expect(
+      screen.getByRole("tabpanel", { name: "Full YAML" }),
+    ).toHaveTextContent("replicas: 3");
+    expect(
+      screen.getByRole("tabpanel", { name: "Full YAML" }),
+    ).toHaveTextContent("replicas: 1");
   });
   it("provides actionable onboarding", () => {
     const action = vi.fn();
