@@ -1,0 +1,10 @@
+api:
+  replicas: 3
+  image: nginx:1.27.5-alpine
+frontend:
+  replicas: 2
+  image: nginx:1.27.5-alpine
+redis:
+  image: redis:7.4.3-alpine
+config:
+  logLevel: info

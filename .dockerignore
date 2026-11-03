@@ -1,0 +1,10 @@
+.git
+.data
+.tools
+credentials
+**/node_modules
+**/dist
+**/*.exe
+**/*.log
+.env*
+**/*.kubeconfig
