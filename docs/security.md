@@ -1,5 +1,11 @@
 # Security model
 
+## Isolation for this installation
+
+Development and verification use this repository's bundled sample infrastructure only. The local application's cluster list is empty. The only live Kubernetes tests run in a disposable `driftlens-demo` Kind cluster created on a GitHub-hosted Actions runner. The demo's kubectl and Helm mutations explicitly select its dedicated kubeconfig/context; they do not use a workstation's default Kubernetes context. No company cluster, company kubeconfig, or existing company infrastructure is part of the test setup. Future hosting and connections require a separately selected, user-owned environment.
+
+## Application boundary
+
 DriftLens is a single-operator, self-hosted MVP. Use a private workstation, VPN or authenticated internal reverse proxy. The default listener and Compose published port bind to loopback. Binding Go beyond loopback requires an API token. Do not put the token in query parameters or commit it. Nginx forwards Authorization to Go; SSE uses authenticated fetch streaming.
 
 Kubernetes access consists of discovery, version and list requests. The API exposes no apply/patch/delete operation. Supply a read-only identity; the application cannot downgrade privileges embedded in an administrator’s kubeconfig. The included demo deliberately uses a separate read-only service account. Secret access uses `PartialObjectMetadataList`; defensive sanitization also removes any payload and non-ownership Secret annotations before persistence.
